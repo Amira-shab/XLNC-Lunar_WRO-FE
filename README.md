@@ -31,7 +31,7 @@ During the prototyping phase, we conducted a study on steering geometries. While
 2. **Maximum Turning Angle:** Our parallel mechanism allows for an impressive **70-degree wheel rotation** without the linkages locking up. This is crucial for the *Parallel Parking* maneuver where maneuverability space is extremely limited.
 3. **Friction Compensation:** Since we use thin front tires, the slight "sliding" effect of parallel steering actually helps the robot pivot faster in sharp corners without the bouncing effect often seen in complex LEGO linkages.
 
-![Parallel Steering Mechanism](docs/ackermannjpg)
+![Parallel Steering Mechanism](docs/ackermann.JPG)
 
 ---
 
