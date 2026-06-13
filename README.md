@@ -7,8 +7,7 @@ This repository contains the source code, computer vision pipelines, and mechani
 
 We are a team of student innovators participating in the WRO Future Engineers category. Here is how we divided our responsibilities to build and program the robot:
 
-| Team Member | Primary Roles & Responsibilities |
-| :--- | :--- |
+| **[Team Member]** | **[Primary Roles & Responsibilities]** |
 
 | **[Shabarova Amira]** | • Chief Mechanical Engineer<br>• Chassis Architecture & Independent Suspension Design<br>• Parallel Steering Mechanism Prototyping<br>• Hardware Optimization & 3D Logistics |
 | **[Nuralinova Aizere]** | • Lead Software Engineer<br>• Computer Vision Pipeline (OpenMV H7 Plus R3)<br>• Navigation Algorithms ($\arcsin$ Obstacle Tracking & Odometry)<br>• Gyro-assisted Control Loops |
@@ -32,7 +31,7 @@ During the prototyping phase, we conducted a study on steering geometries. While
 2. **Maximum Turning Angle:** Our parallel mechanism allows for an impressive **70-degree wheel rotation** without the linkages locking up. This is crucial for the *Parallel Parking* maneuver where maneuverability space is extremely limited.
 3. **Friction Compensation:** Since we use thin front tires, the slight "sliding" effect of parallel steering actually helps the robot pivot faster in sharp corners without the bouncing effect often seen in complex LEGO linkages.
 
-![Parallel Steering Mechanism](docs/steering_geometry.jpg)
+![Parallel Steering Mechanism](docs/ackermannjpg)
 
 ---
 
@@ -71,7 +70,7 @@ When obstacles (pillars) are introduced, the robot switches to an advanced local
 ## 📂 Repository Layout
 
 * `src/main.py`: Main state machine managing the logic for Qualification and Obstacle rounds.
-* `src/drive.py`: Low-level motor control routines including gyro-straightening and encoder-based movement.
-* `src/vision.py`: OpenMV script for color blob tracking and distance estimation via contour area.
-* `src/steering.py`: Mathematical implementation of the $\arcsin$ obstacle localization algorithms.
-* `src/config.py`: Port maps, PID gains, and camera calibration constants.
+* `src/opening.round`: Low-level motor control routines including gyro-straightening and encoder-based movement.
+* `src/camera.code`: OpenMV script for color blob tracking and distance estimation via contour area.
+* `src/drive.odometry`: Mathematical implementation of the $\arcsin$ obstacle localization algorithms.
+* `src/obstacle.round`: Code for obctacle round. Reading odometry and driving above obctacles.
