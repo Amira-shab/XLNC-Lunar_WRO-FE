@@ -147,9 +147,32 @@ The entire codebase is structured using an object-oriented, synchronous non-bloc
 
 ### 4.2. Qualification Round Logic (Direction & Lane Detection)
 
-During the Qualification Round, the robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the `CheckColorAction` class:
+During the Qualification Round, the robot calculates its position using odometry. It then maintains a specific Y axis to drive straight.The robot then turns using the arcsin function (movements->drive_using_odometry):
 
 ```python
+def drive_using_odom(target_Y = 0, mirrored = False):
+    class DriveUsingOdomAction(Action):
+        def on_start(inner_self):
+            if mirrored and Action.robot.clockwise:
+                inner_self.target = -target_Y
+            else:
+                inner_self.target = target_Y
+        def update(inner_self):
+            robot = Action.robot
+
+            current_val = robot.frontY
+            error_y = current_val - inner_self.target
+            error_y = min(lookahead, max(-lookahead, error_y))
+
+            target_angle = umath.degrees(umath.asin(error_y / lookahead))
+            error_heading = wrap_angle(target_angle + robot.heading)
+    
+            robot.steer_target = error_heading
+            return False
+    return DriveUsingOdomAction()
+```
+ Robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the `CheckColorAction` class:
+ ```python
 def check_color():
     class CheckColorAction(Action):
         def update(inner_self):
@@ -181,10 +204,9 @@ def check_color():
             return False
     return CheckColorAction()
 ```
-
 ### 4.3. Obstacle Avoidance Round ($\arcsin$ Geometry & Edge-Case Filtering)
 
-When navigating the complex Obstacle Round, continuous camera polling introduces severe tracking oscillation (over-steering). To counteract this, we engineered a **Discrete Spatial Windowing** strategy. 
+If the camera doesn't see anything, robot drives using odometry as in the opening round. When the robot sees an obstacle , it goes around it, regardless of where the obstacle is. That is, it goes either toward the center of the map or toward the wall. For example, if the obstacle is green, the robot tries to move closer to the wall. If it's red, it's the opposite.
 
 The robot does not continuously look at the camera; instead, it checks the camera *exactly once* at specific spatial milestones measured via encoder odometry (e.g., every $-20\text{ cm}$ along the X-coordinate axis). Once the data is processed, the steering angle is updated using internal $\arcsin$ tracking math to clear the pillar, and further camera processing is locked until the milestone is cleared.
 
