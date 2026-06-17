@@ -1,0 +1,65 @@
+from pybricks.hubs import PrimeHub
+from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor
+from pybricks.iodevices import PUPDevice
+from pybricks.parameters import Port, Axis, Direction
+
+class Robot:
+    def __init__(self, telemetry, Dmotor, Smotor, Camera, Color, USleft, USright):
+        self.heading = 0
+        self.gyro_zero = 0
+        self.us_distL = 0
+        self.us_distR = 0
+        self.frontX = 0
+        self.frontY = 0
+        self.X = 0
+        self.Y = 0
+        self.clockwise = None 
+        self.turn_counter = 0
+        self.camdata = [0,0,0,0]
+        self.obstacle = (0,0)
+        self.color_check = 0
+        self.is_orange = 0
+        self.turn_angle = 90
+        self.aimx = 20
+        self.error = 0
+        self.speed = 700
+        self.enc_change = 0
+        self.enc_old = 0
+        self.steer_target = 0
+
+        self.hub = PrimeHub(front_side=Axis.Y, top_side=-Axis.X)
+
+        while(not self.hub.imu.ready()):
+            pass
+        self.hub.speaker.beep(100)
+
+        self.telemetry = telemetry
+        self.robot_length = 25
+        self.obstacle = []
+
+        self.drive_motor = Motor(Dmotor)
+        self.drive_motor.reset_angle(0)
+        self.drive_motor.control.limits(1500,1000,263)
+
+        self.ultrasonicL = UltrasonicSensor(USleft)
+        self.ultrasonicR = UltrasonicSensor(USright)
+        if (Camera != None): self.camera = PUPDevice(Camera)
+        self.gyro = self.hub.imu
+        self.gyro.reset_heading(0)
+
+        if (Color != None):
+            self.color_sensor = ColorSensor(Color)
+            self.hsv = self.color_sensor.hsv()
+            
+
+        self.coef = 42.8
+
+        self.steer_motor = Motor(Smotor, Direction.CLOCKWISE, [1, 1], True, 5)
+        self.steer_motor.control.pid(4000, 1000, 300, 8, 15)
+        self.steer_limit = 45
+        self.current = 600
+
+        self.finish_zone = [20, 0, 2]
+        self.drive_to_finish = []
+        self.finish_set = False
+        self.reds = 0
