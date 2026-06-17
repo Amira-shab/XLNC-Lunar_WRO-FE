@@ -1,4 +1,4 @@
-Markdown
+```markdown
 # WRO Future Engineers — Complete Engineering & Software Documentation
 
 This repository contains the complete source code, computer vision architecture, and electromechanical design specifications for the autonomous vehicle developed by team **XLNC-Lunar** for the World Robot Olympiad (WRO) Future Engineers competition. 
@@ -39,9 +39,10 @@ During early testing with a rigid V1 chassis layout, the robot suffered from sig
 
 To resolve this, we engineered an **Independent Suspension System (V2)**.
 
+```
 Rigid Chassis (V1):   [Bump] ──> Entire Chassis Tilts ──> IMU Noise & Wheel Slip (0 Grip)
 Suspension (V2):      [Bump] ──> Wheel Compresses ──> Chassis Stays Level ──> 100% Grip
-
+```
 
 By allowing each wheel axle to compress independently, the chassis remains perfectly horizontal relative to the ground plane. This mechanical filter keeps all four tires under constant normal force, guaranteeing steady traction, eliminating physical shocks to the IMU, and lowering our odometry drift from $\pm 8.5\%$ down to an exceptional **$\pm 1.2\%$ over a 3-turn run**.
 
@@ -108,14 +109,21 @@ while not self.hub.imu.ready():
     pass  # Strictly block execution until sensor registers absolute stillness
 
 self.hub.speaker.beep(100)  # Acoustic feedback confirming calibration lock
-🧠 4. Software Architecture & Obstacle Strategy
-4.1. Non-Blocking Synchronous State Machine
-The entire codebase is structured using an object-oriented, synchronous non-blocking framework. Instead of utilizing linear scripts with dangerous sleep() calls that blind the robot to real-time events, our architecture evaluates an array of Action objects inside a high-frequency control loop running at ≈50 Hz.
+```
 
-4.2. Qualification Round Logic (Direction & Lane Detection)
-During the Qualification Round, the robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the CheckColorAction class:
+---
 
-Python
+## 🧠 4. Software Architecture & Obstacle Strategy
+
+### 4.1. Non-Blocking Synchronous State Machine
+
+The entire codebase is structured using an object-oriented, synchronous non-blocking framework. Instead of utilizing linear scripts with dangerous `sleep()` calls that blind the robot to real-time events, our architecture evaluates an array of `Action` objects inside a high-frequency control loop running at $\approx 50\text{ Hz}$.
+
+### 4.2. Qualification Round Logic (Direction & Lane Detection)
+
+During the Qualification Round, the robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the `CheckColorAction` class:
+
+```python
 def check_color():
     class CheckColorAction(Action):
         def update(inner_self):
@@ -146,12 +154,15 @@ def check_color():
                         return True
             return False
     return CheckColorAction()
-4.3. Obstacle Avoidance Round (arcsin Geometry & Edge-Case Filtering)
-When navigating the complex Obstacle Round, continuous camera polling introduces severe tracking oscillation (over-steering). To counteract this, we engineered a Discrete Spatial Windowing strategy.
+```
 
-The robot does not continuously look at the camera; instead, it checks the camera exactly once at specific spatial milestones measured via encoder odometry (e.g., every −20 cm along the X-coordinate axis). Once the data is processed, the steering angle is updated using internal arcsin tracking math to clear the pillar, and further camera processing is locked until the milestone is cleared.
+### 4.3. Obstacle Avoidance Round ($\arcsin$ Geometry & Edge-Case Filtering)
 
-Python
+When navigating the complex Obstacle Round, continuous camera polling introduces severe tracking oscillation (over-steering). To counteract this, we engineered a **Discrete Spatial Windowing** strategy. 
+
+The robot does not continuously look at the camera; instead, it checks the camera *exactly once* at specific spatial milestones measured via encoder odometry (e.g., every $-20\text{ cm}$ along the X-coordinate axis). Once the data is processed, the steering angle is updated using internal $\arcsin$ tracking math to clear the pillar, and further camera processing is locked until the milestone is cleared.
+
+```python
 def camera_drive():
     class CameraDrive(Action):
         def on_start(self):
@@ -170,9 +181,11 @@ def camera_drive():
             else:
                 return b.update           # Fallback: maintain odometry center line
     return CameraDrive()
+```
+
 This structural execution is managed deterministically via our main execution sequencer loop:
 
-Python
+```python
 # Sequencer showing spatial windowing strategy over 11 sectors
 route_sequence = []
 for i in range(11):
@@ -182,35 +195,47 @@ for i in range(11):
         drive(camera_drive(), check_color()),        # Cross-reference sector exit colors
         reset()                                      # Reset encoders for next local sector
     ])
+```
+
 The underlying mechanical milestone coordinate tracking function uses the following structure:
 
-Python
+```python
 def check_coor(coor, target_val, forward=True):
     class DriveToCoorAction(Action):
         def update(inner_self):
             current_val = getattr(Action.robot, "front"+coor.upper())
             return current_val > target_val if forward else current_val < target_val
     return DriveToCoorAction()
-📈 5. Systems Thinking & Risk Mitigation
-5.1. Engineering Trade-offs & Failure-Mode Analysis
+```
+
+---
+
+## 📈 5. Systems Thinking & Risk Mitigation
+
+### 5.1. Engineering Trade-offs & Failure-Mode Analysis
+
 Our iterative testing workflow forced us to explicitly analyze system vulnerabilities to prevent catastrophic real-time runtime failures:
 
-Risk 1: Camera Blink / Frame Drop. If the OpenMV camera drops a frame or experiences a lens glare while approaching a pillar, camdata returns None.
+* **Risk 1: Camera Blink / Frame Drop.** If the OpenMV camera drops a frame or experiences a lens glare while approaching a pillar, `camdata` returns `None`. 
+  * *Mitigation:* The software handles this edge-case gracefully inside `camera_drive()` by instantly falling back to `b = drive_using_odom(0)`. Instead of swerving blindly, the vehicle relies on its precise IMU gyro-lock to maintain its heading until the next coordinate milestone is reached.
+* **Risk 2: Low-Battery Voltage Drop.** As LiPo/Li-ion cells discharge under 30%, raw motor velocities drop, causing traditional time-based autonomous scripts to fail.
+  * *Mitigation:* Our software is entirely **dimensionally driven**, relying on physical coordinate checks via `check_coor("X", target_val)`. Since transitions depend on spatial distance traveled rather than elapsed time, the robot's logic remains 100% accurate regardless of battery state.
 
-Mitigation: The software handles this edge-case gracefully inside camera_drive() by instantly falling back to b = drive_using_odom(0). Instead of swerving blindly, the vehicle relies on its precise IMU gyro-lock to maintain its heading until the next coordinate milestone is reached.
+### 5.2. Empirical Validation & Validation Metrics
 
-Risk 2: Low-Battery Voltage Drop. As LiPo/Li-ion cells discharge under 30%, raw motor velocities drop, causing traditional time-based autonomous scripts to fail.
-
-Mitigation: Our software is entirely dimensionally driven, relying on physical coordinate checks via check_coor("X", target_val). Since transitions depend on spatial distance traveled rather than elapsed time, the robot's logic remains 100% accurate regardless of battery state.
-
-5.2. Empirical Validation & Validation Metrics
 To validate our system changes, we ran 20 structured test runs comparing the baseline architecture against our final V2 suspension + Spatial Windowing software stack.
 
-Metric Evaluated	Baseline (Rigid V1 / Continuous Polling)	Final V2 (Suspension + Spatial Milestones)	Performance Improvement
-Odometry Drift (3 Laps)	±8.5 cm	±1.1 cm	+87% Accuracy
-Pillar Avoidance Success Rate	70% (Occasional oscillation crashes)	100% (Solid over 20 consecutive runs)	+30% Stability
-Average Sector Lap Time	4.82 seconds	4.11 seconds	+14.7% Speed Gain
-📂 6. Repository Layout & Reproducibility Guide
+| Metric Evaluated | Baseline (Rigid V1 / Continuous Polling) | Final V2 (Suspension + Spatial Milestones) | Performance Improvement |
+| :--- | :--- | :--- | :--- |
+| **Odometry Drift (3 Laps)** | $\pm 8.5\text{ cm}$ | $\pm 1.1\text{ cm}$ | **+87% Accuracy** |
+| **Pillar Avoidance Success Rate** | $70\%$ (Occasional oscillation crashes) | $100\%$ (Solid over 20 consecutive runs) | **+30% Stability** |
+| **Average Sector Lap Time** | $4.82\text{ seconds}$ | $4.11\text{ seconds}$ | **+14.7% Speed Gain** |
+
+---
+
+## 📂 6. Repository Layout & Reproducibility Guide
+
+```
 ├── docs/                     # Engineering Schematics and Visual Assets
 │   ├── suspension.JPG        # V2 Independent Suspension Assembly Close-up
 │   ├── ackermann.JPG         # Parallel vs Ackermann linkage physical layout
@@ -223,24 +248,3 @@ Average Sector Lap Time	4.82 seconds	4.11 seconds	+14.7% Speed Gain
     ├── drive.odometry        # Odometry calculations & coordinate tracking core
     ├── opening.round         # Qualification round execution profile
     └── obstacle.round        # Obstacle-avoidance routine execution profile
-🎯 Documented File Indexes:
-src/main.py: Main state machine managing the core loops and operational steps for both Qualification and Obstacle rounds.
-
-src/opening.round: Low-level motor control routines including gyro-straightening and encoder-based movement for the opening run.
-
-src/camera.code: Python script executed directly on the OpenMV sensor for real-time color blob tracking and focal contour filtering.
-
-src/drive.odometry: Mathematical implementation of the coordinate translation algorithms.
-
-src/obstacle.round: Autonomous roadmap sequences optimized explicitly for navigating above and around dense obstacle segments.
-
-🚀 How to Reproduce This Robot
-Hardware Setup: Assemble the chassis utilizing the V2 suspension layout found in docs/suspension.JPG. Mount the front small Spike Prime motor parallel to the steering knuckles to achieve the specified 70 
-∘
-  maximum mechanical turning throw.
-
-Camera Flash: Upload src/camera.code to the OpenMV Cam H7 using the OpenMV IDE. Ensure the LPF2 emulation protocol driver is enabled.
-
-Main Controller Deployment: Load the contents of the src/ directory into the LEGO Spike Prime app (using the advanced Python project mode).
-
-Execution: Place the robot on the starting grid. Ensure it is completely stationary to allow the IMU boot-hook routine (while not self.hub.imu.ready()) to calibrate successfully. The hub will emit a 100 Hz sound cue once it is safe to start the run.
