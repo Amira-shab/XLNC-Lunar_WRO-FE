@@ -294,8 +294,8 @@ To validate our system changes, we ran 20 structured test runs comparing the bas
 │   └── OpenMV.JPG            # Camera mounting, alignment, and FOV schematics
 └── src/                      # Source Code Directory (Fully Documented)
     ├── robot                 # Robot initialization
-    ├── camera.code           # MicroPython script for OpenMV HSV Color Tracking
+    ├── camera_code           # MicroPython script for OpenMV HSV Color Tracking
     ├── movements             # Odometry and other calculations
-    ├── opening.round         # Qualification round execution profile
+    ├── opening_round         # Qualification round execution profile
     ├── movements             # A lot of different functions
-    └── obstacle.round        # Obstacle-avoidance routine execution profile
+    └── obstacle_round        # Obstacle-avoidance routine execution profile
