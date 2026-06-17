@@ -1,0 +1,184 @@
+from pybricks.pupdevices import Motor
+from pybricks.parameters import Color, Direction, Port, Stop
+from pybricks.tools import wait, StopWatch
+from Action import Action
+from Telemetry import Telemetry
+import umath
+
+lookahead = 20
+is_turning_now = False
+
+def wrap_angle(angle):
+    return (angle + 180) % 360 - 180
+
+def sound_action():
+    class SoundAction(Action):
+        def update(inner_self):
+            Action.robot.hub.speaker.beep(440, 100)
+            return True
+    return SoundAction()
+
+def steer_action():
+    class SteerAction(Action):
+        def update(inner_self):
+            robot = Action.robot
+            robot.steer_target = min(robot.steer_limit, max(-robot.steer_limit, robot.steer_target))
+            robot.steer_motor.track_target(robot.steer_target)
+            return False
+    return SteerAction()
+
+def wait_action(duration_ms):
+    class WaitAction(Action):
+        def __init__(inner_self):
+            super().__init__()
+            inner_self.timer = StopWatch()
+            inner_self.started = False
+
+        def update(inner_self):
+            if not inner_self.started:
+                inner_self.timer.reset()
+                inner_self.started = True
+            return inner_self.timer.time() >= duration_ms
+    return WaitAction()
+
+def set_speed(speed):
+    class SetSpeedAction(Action):
+        def update(inner_self):
+            Action.robot.drive_motor.dc(speed)
+            return True
+    return SetSpeedAction()
+
+def check_color():
+    class CheckColorAction(Action):
+        def update(inner_self):
+            hsv = Action.robot.hsv
+            if hsv is None or not hasattr(hsv, "s"):
+                return False
+            
+            if hsv.s > 35:
+                if Action.robot.clockwise is None:
+                    if 180 < hsv.h < 260:
+                        Action.robot.clockwise = False
+                        Action.robot.is_orange = False
+                    else:
+                        Action.robot.clockwise = True
+                        Action.robot.is_orange = True
+                    return True
+                
+                if Action.robot.clockwise:
+                    if not (180 < hsv.h < 260):  
+                        Action.robot.is_orange = True
+                        return True
+                else:
+                    if 180 < hsv.h < 260:       
+                        Action.robot.is_orange = False
+                        return True
+            return False
+    return CheckColorAction()
+
+def check_coor(coor, target_val, forward=True):
+    class DriveToCoorAction(Action):
+        def update(inner_self):
+            current_val = getattr(Action.robot, "front"+coor.upper())
+            return current_val > target_val if forward else current_val < target_val
+    return DriveToCoorAction()
+
+def drive(drive_action: Action, exit_condition: Action):
+    class DriveAction(Action):
+        def update(inner_self):
+            drive_action._safe_update()
+            if exit_condition._safe_update():
+                return True
+            return False
+    return DriveAction()
+
+def drive_using_odom(target_Y = 0, mirrored = False):
+    class DriveUsingOdomAction(Action):
+        def on_start(inner_self):
+            if mirrored and Action.robot.clockwise:
+                inner_self.target = -target_Y
+            else:
+                inner_self.target = target_Y
+        def update(inner_self):
+            robot = Action.robot
+
+            current_val = robot.frontY
+            error_y = current_val - inner_self.target
+            error_y = min(lookahead, max(-lookahead, error_y))
+
+            target_angle = umath.degrees(umath.asin(error_y / lookahead))
+            error_heading = wrap_angle(target_angle + robot.heading)
+    
+            robot.steer_target = error_heading
+            return False
+    return DriveUsingOdomAction()
+
+def reset():
+    class Reset(Action):
+        def __init__(inner_self):
+            super().__init__()
+            inner_self.timer = StopWatch()
+            inner_self.delay_started = False
+            inner_self.gyro_reset_called = False
+        def update(inner_self): 
+            global is_turning_now
+            X, Y = Action.robot.X, Action.robot.Y
+            if Action.robot.clockwise:
+                _X = Y - 100
+                _Y = 100 - X
+                Action.robot.gyro_zero += Action.robot.turn_angle
+            else:
+                _X = -100 - Y
+                _Y = X - 100
+                Action.robot.gyro_zero -= Action.robot.turn_angle
+            Action.robot.turn_counter += 1
+            Action.robot.X, Action.robot.Y = _X, _Y
+            
+            is_turning_now = True 
+            return True
+    return Reset()
+
+def stop():
+    class StopAction(Action):
+        def update(inner_self):
+            Action.robot.drive_motor.run(0)
+            Action.robot.drive_motor.stop()
+            return True
+    return StopAction()
+
+def qual_reset():
+    class QualResetAction(Action):
+        def update(inner_self):
+            robot = Action.robot
+            if robot.clockwise:
+                robot.gyro_zero += robot.turn_angle
+                dist = robot.us_distL
+                robot.Y = dist / 1.81
+            else:
+                robot.gyro_zero -= robot.turn_angle
+                dist = robot.us_distR
+                robot.Y = -dist / 1.81
+            
+            robot.X = (dist + 4) - 150
+          
+            robot.turn_counter = 1
+            
+            return True
+    return QualResetAction()
+
+def camera_drive():
+    class CameraDrive(Action):
+        def on_start(self):
+          camdata= camera.read(0)
+          a = drive_using_odom(21.25)
+          b = drive_using_odom(0)
+          c = drive_using_odom(-21.25)
+          if camdata != None:
+            if camdata[0]== 1:
+                return c.update
+            else:
+                return a.update
+          else:
+            return b.update  
+            return True
+    return CameraDrive()
