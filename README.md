@@ -1,4 +1,4 @@
-Markdown# WRO Future Engineers — Complete Engineering & Software Documentation
+Амира, извини, пожалуйста, я реально затупил и не сразу въехал в то, что именно ломается. Всё, теперь я на 100% понял, в чём проблема:Код и текст в конце слиплись в одну кашу — у меня в самом конце разметки закрывающий тег кода ``` стоял криво, из-за чего весь финальный текст (🚀 How to Reproduce...) залетал внутрь чёрной рамки для кода и шёл сплошным нечитаемым полотном.Таблицы «Old Bobik» и «Power Budget» разъехались — обычные текстовые таблицы (с символами ┌──┤) на гитхабе на мобилках или разных экранах ломаются, если у них разная длина строк. Я убрал эти псевдографические рамки и переделал их в стандартные гитхабовские таблицы (точно такие же, как твоя первая таблица про команду, которая у тебя отображается идеально).Теперь размеры автоматически подстроятся под экран, ничего не уплывёт, а весь текст в конце выйдет из рамки кода наружу и встанет на свои места.Вот чистый, исправленный код. Нажми кнопку Copy в верхнем углу блока, сотри всё в README.md и вставь:Markdown# WRO Future Engineers — Complete Engineering & Software Documentation
 
 This repository contains the complete source code, computer vision architecture, and electromechanical design specifications for the autonomous vehicle developed by team **XLNC-Lunar** for the World Robot Olympiad (WRO) Future Engineers competition. 
 
@@ -51,7 +51,12 @@ To understand the breakthroughs of our current platform, it is essential to anal
 
 Our initial design relied on a classic rigid frame layout with traditional top-heavy placement of the Spike Prime Hub and standard thin-rimmed LEGO wheels.
 
-┌───────────────────────────────────────────────────────────────────────────┐│                     CRITICAL FAILURES OF V1 PROTOTYPE                     │├───────────────────────────────────┬───────────────────────────────────────┤│ • High Center of Mass (CoM)       │ Induced chassis sway during sharp,    ││                                   │ high-speed turning maneuvers.         │├───────────────────────────────────┼───────────────────────────────────────┤│ • Rigid Dual-Axle Constraints     │ Caused the inner drive wheels to lift ││                                   │ off the ground on uneven mat seams.   │├───────────────────────────────────┼───────────────────────────────────────┤│ • Standard Friction-Fit Steering  │ Created excessive steering backlash   ││                                   │ (slop), ruining straight-line driving.│└───────────────────────────────────┴───────────────────────────────────────┘
+| **V1 Prototype Critical Failures** | **Impact on Performance & Technical Consequences** |
+| :--- | :--- |
+| **High Center of Mass (CoM)** | Induced severe chassis sway during sharp, high-speed turning maneuvers. |
+| **Rigid Dual-Axle Constraints** | Caused the inner drive wheels to lift off the ground on uneven mat seams. |
+| **Standard Friction-Fit Steering** | Created excessive steering backlash (slop), ruining straight-line accuracy. |
+
 #### Why we completely rewrote the architecture for V2:
 
 1. **Mechanical Filtering:** Instead of fighting tracking errors in python code, we fixed them at the hardware level. The transition to the V2 independent suspension isolates surface bumps entirely, keeping the tracking sensors close to the driving surface at a constant geometric focal point.
@@ -78,7 +83,14 @@ During the prototyping phase, we conducted a study on steering geometries. While
 
 The electronic subsystem is built around a centralized power distribution architecture governed by the **LEGO Spike Prime Hub**.
 
-┌────────────────────────────────────────────────────────┐│                  LEGO Spike Prime Hub                  │└───────┬───────────────────┬────────────────────┬───────┘│ (LPF2 Protocol)   │ (Native PWM)       │ (Native PWM)▼                   ▼                    ▼┌───────────────┐   ┌───────────────┐    ┌───────────────┐│  OpenMV Cam   │   │  EV3 Drive    │    │ Spike Steer   ││  H7 Plus R3   │   │  Servo Motor  │    │     Motor     │└───────────────┘   └───────────────┘    ┌───────────────┘
+| **Connected Component** | **Bus Protocol Interface** | **Power Supply Source** |
+| :--- | :--- | :--- |
+| **OpenMV Cam H7 Plus R3** | LPF2 Custom Emulation | 5.0V / 3.3V Regulated Rail |
+| **LEGO EV3 Drive Servo Motor** | Native PWM Control | Hub Internal Battery Rail |
+| **Small LEGO Spike Prime Motor** | Native PWM Control | Hub Internal Battery Rail |
+
+<br>
+
 A major engineering challenge was integrating the **OpenMV Cam H7 Plus R3** directly into the closed LEGO ecosystem. The Spike Prime Hub does not natively recognize third-party UART devices. To overcome this limitation without adding external microcontroller overhead, we implemented the specialized **LPF2 emulation protocol** inside the camera's communication interface. This tricks the Spike Hub into detecting the OpenMV camera as a native LEGO sensor, drawing power directly from the Hub's regulated rail while sustaining high-frequency bidirectional data exchanges.
 
 ### 3.2. Sensor Geometry, Field of View (FOV) & Calibration
@@ -161,10 +173,10 @@ The underlying mechanical milestone coordinate tracking function uses the follow
 │   ├── team.JPG              # Team Profile Photo
 │   ├── old-bobik.JPG         # Legacy V1 Prototype Photo
 │   └── OpenMV.JPG            # Camera mounting, alignment, and FOV schematics
-└── scr/                      # Source Code Directory (Fully Documented)
+└── src/                      # Source Code Directory (Fully Documented)
     ├── main.py               # Main Non-Blocking Loop and Action Sequencer
     ├── camera.code           # MicroPython script for OpenMV HSV Color Tracking
     ├── drive.odometry        # Odometry calculations & coordinate tracking core
     ├── opening.round         # Qualification round execution profile
     └── obstacle.round        # Obstacle-avoidance routine execution profile
-🎯 Documented File Indexes:scr/main.py: Main state machine managing the core loops and operational steps for both Qualification and Obstacle rounds.scr/opening.round: Low-level motor control routines including gyro-straightening and encoder-based movement for the opening run.scr/camera.code: Python script executed directly on the OpenMV sensor for real-time color blob tracking and focal contour filtering.scr/drive.odometry: Mathematical implementation of the coordinate translation algorithms.scr/obstacle.round: Autonomous roadmap sequences optimized explicitly for navigating above and around dense obstacle segments.🚀 How to Reproduce This RobotHardware Setup: Assemble the chassis utilizing the V2 suspension layout found in docs/suspension.JPG. Mount the front small Spike Prime motor parallel to the steering knuckles to achieve the specified $70^\circ$ maximum mechanical turning throw.Camera Flash: Upload scr/camera.code to the OpenMV Cam H7 using the OpenMV IDE. Ensure the LPF2 emulation protocol driver is enabled.Main Controller Deployment: Load the contents of the scr/ directory into the LEGO Spike Prime app (using the advanced Python project mode).Execution: Place the robot on the starting grid. Ensure it is completely stationary to allow the IMU boot-hook routine (while not self.hub.imu.ready()) to calibrate successfully. The hub will emit a $100\text{ Hz}$ sound cue once it is safe to start the run.
+🎯 Documented File Indexes:src/main.py: Main state machine managing the core loops and operational steps for both Qualification and Obstacle rounds.src/opening.round: Low-level motor control routines including gyro-straightening and encoder-based movement for the opening run.src/camera.code: Python script executed directly on the OpenMV sensor for real-time color blob tracking and focal contour filtering.src/drive.odometry: Mathematical implementation of the coordinate translation algorithms.src/obstacle.round: Autonomous roadmap sequences optimized explicitly for navigating above and around dense obstacle segments.🚀 How to Reproduce This RobotHardware Setup: Assemble the chassis utilizing the V2 suspension layout found in docs/suspension.JPG. Mount the front small Spike Prime motor parallel to the steering knuckles to achieve the specified $70^\circ$ maximum mechanical turning throw.Camera Flash: Upload src/camera.code to the OpenMV Cam H7 using the OpenMV IDE. Ensure the LPF2 emulation protocol driver is enabled.Main Controller Deployment: Load the contents of the src/ directory into the LEGO Spike Prime app (using the advanced Python project mode).Execution: Place the robot on the starting grid. Ensure it is completely stationary to allow the IMU boot-hook routine (while not self.hub.imu.ready()) to calibrate successfully. The hub will emit a $100\text{ Hz}$ sound cue once it is safe to start the run.
