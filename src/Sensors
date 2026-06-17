@@ -1,0 +1,94 @@
+from pybricks.pupdevices import Motor
+from pybricks.parameters import Direction
+from Action import Action
+from Telemetry import Telemetry
+from Robot import Robot
+import umath
+
+
+def uart_action():
+    class UartAction(Action):
+        def update(inner_self):
+            Action.robot.heading = Action.robot.gyro.heading() - Action.robot.gyro_zero
+            
+            Action.robot.us_distL = Action.robot.ultrasonicL.distance() / 10
+            Action.robot.us_distR = Action.robot.ultrasonicR.distance() / 10
+            if Action.robot.clockwise:
+                if Action.robot.us_distL > 100:
+                    Action.robot.us_distL = 0
+            else:
+                if Action.robot.us_distR > 100:
+                    Action.robot.us_distR = 0
+            Action.robot.hsv = Action.robot.color_sensor.hsv()
+            return False
+    return UartAction()
+    
+def odometry_action():
+    class OdomAction(Action):
+        def update(inner_self):
+            bot = Action.robot
+            enc = bot.drive_motor.angle()
+            bot.enc_change = enc - bot.enc_old
+            bot.enc_old = enc
+            
+            distance = bot.enc_change / bot.coef
+            
+            heading = (bot.heading + 180) % 360 - 180
+            
+            bot.X += distance * umath.cos(umath.radians(heading))
+            bot.Y += distance * umath.sin(umath.radians(heading))
+
+            bot.frontX = bot.X + 8.8 * umath.cos(umath.radians(bot.heading))
+            bot.frontY = bot.Y + 8.8 * umath.sin(umath.radians(bot.heading))
+
+            if -0.1 < heading < 0.1 and bot.clockwise != None:
+                    US_Y = bot.us_distL - 46.0 if bot.clockwise else 46.0 - bot.us_distR
+                    if abs(US_Y - bot.Y) < 4:
+                        bot.Y = US_Y
+                        bot.hub.speaker.beep(400,10)
+            
+            return False  
+    return OdomAction()
+
+def print_info_action():
+    class PrintAction(Action):
+        def update(inner_self):
+            bot = Action.robot
+            tel = bot.telemetry
+            tel.set_live("X, Y, angle: ", [bot.X, bot.Y, bot.heading], "GREEN")
+            tel.set_live("distR, distL", [bot.us_distR, bot.us_distL], "YELLOW")
+            tel.set_live("clockwise", bot.clockwise, "YELLOW")
+            tel.set_live("Obstacle: ", bot.obstacle, "GREEN")
+            tel.set_live("Camera: ", bot.camdata, "GREEN")
+            tel.render()
+            return False  
+    return PrintAction()
+
+def camera_action():
+    class CameraAction(Action):
+        def update(inner_self):
+            try:
+                # Читаем без аргументов, чтобы не конфликтовать с буфером
+                raw_data = Action.robot.camera.read() 
+                if raw_data and isinstance(raw_data, (list, tuple)) and len(raw_data) >= 3:
+                    Action.robot.camdata = raw_data
+                else:
+                    Action.robot.camdata = [0, 0, 0, 0]
+            except:
+                Action.robot.camdata = [0, 0, 0, 0]
+                return False
+                
+            camdata = Action.robot.camdata
+            if camdata[0] == 0:
+                return False
+                
+            clr = camdata[0]
+            relX = camdata[1]
+            relY = camdata[2]
+            robotX, robotY = Action.robot.X, Action.robot.Y
+            heading = umath.radians(Action.robot.heading)
+            absX = robotX + umath.cos(heading) * relX - umath.sin(heading) * relY
+            absY = robotY + umath.sin(heading) * relX + umath.cos(heading) * relY
+            Action.robot.obstacle = (absX, absY)
+            return False
+    return CameraAction()
