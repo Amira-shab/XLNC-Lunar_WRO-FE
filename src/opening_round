@@ -1,0 +1,58 @@
+from Robot import Robot
+from Action import Action, SequentialAction, ParallelAction
+from Movements import *
+from Sensors import odometry_action, uart_action, print_info_action
+from Telemetry import Telemetry
+from pybricks.parameters import Port
+
+print("\x1b[H\x1b[2J", end="")
+
+dMotor = Port.D
+sMotor = Port.C
+color = Port.B
+camera = None 
+leftUltrasonic = Port.A
+rightUltrasonic = Port.E
+telemetry = Telemetry(100)
+
+myrobot = Robot(telemetry, dMotor, sMotor, camera, color, leftUltrasonic, rightUltrasonic)
+Action.set_robot(myrobot)
+
+start_sequence = [
+    set_speed(100),
+    drive(drive_using_odom(0), check_color()), 
+    qual_reset(), 
+    stop()
+]
+
+route_sequence = []
+for i in range(11):
+    route_sequence.extend([
+        sound_action(),
+        drive(drive_using_odom(20, True), check_coor("X", -20)),
+        drive(drive_using_odom(20, True), check_color()), 
+        reset()                           
+    ])
+
+finish_sequence = [
+    sound_action(),
+    drive(drive_using_odom(20, True), check_coor("X", -10)), 
+    stop()
+]
+
+final_qual_path = start_sequence + route_sequence + finish_sequence
+
+actions = [
+    SequentialAction(final_qual_path),
+    ParallelAction([
+        uart_action(),
+        odometry_action(),
+        steer_action(),
+        print_info_action()
+    ])
+]
+
+while actions:
+    for action in actions[:]:
+        if action.update():
+            actions.remove(action)
