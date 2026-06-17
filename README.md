@@ -51,7 +51,8 @@ By allowing each wheel axle to compress independently, the chassis remains perfe
 
 ### 2.3. Legacy Hardware: Evolution from V1 ("Old Bobik") to V2
 
-To understand the breakthroughs of our current platform, it is essential to analyze our previous prototype, internally named **"Old Bobik"** (`docs/old-bobik.JPG`). 
+To understand the breakthroughs of our current platform, it is essential to analyze our previous prototype
+![Old robot photo](docs/old_robot.JPG)
 
 Our initial design relied on a classic rigid frame layout with traditional top-heavy placement of the Spike Prime Hub and standard thin-rimmed LEGO wheels.
 
@@ -66,6 +67,7 @@ Our initial design relied on a classic rigid frame layout with traditional top-h
 1. **Mechanical Filtering:** Instead of fighting tracking errors in python code, we fixed them at the hardware level. The transition to the V2 independent suspension isolates surface bumps entirely, keeping the tracking sensors close to the driving surface at a constant geometric focal point.
 2. **Low-Profile Center of Mass:** In V2, the Spike Prime Hub was dropped down into the lower structural bed of the chassis, lowering our tipping moment and allowing the vehicle to execute rapid evasive maneuvers around pillars without chassis oscillation.
 3. **From Time-Driven to Vector-Driven Software:** The old robot run-profile (`docs/old.robot`) used simple time delays and hardcoded steering delays. If the battery dropped by 0.5V, the robot crashed. The new V2 software is 100% distance-and-coordinate driven, recalculating its spatial state dynamically.
+![Our current robot](docs/robot.JPG)
 
 ### 2.4. Steering Geometry: Parallel Steering
 
