@@ -54,14 +54,13 @@ Our initial design relied on a classic rigid frame layout with traditional top-h
 ├───────────────────────────────────┬───────────────────────────────────────┤
 │ • High Center of Mass (CoM)       │ Induced chassis sway during sharp,    │
 │                                   │ high-speed turning maneuvers.         │
-├───────────────────────────────────┬───────────────────────────────────────┤
+├───────────────────────────────────┼───────────────────────────────────────┤
 │ • Rigid Dual-Axle Constraints     │ Caused the inner drive wheels to lift │
 │                                   │ off the ground on uneven mat seams.   │
-├───────────────────────────────────┬───────────────────────────────────────┤
+├───────────────────────────────────┼───────────────────────────────────────┤
 │ • Standard Friction-Fit Steering  │ Created excessive steering backlash   │
 │                                   │ (slop), ruining straight-line driving.│
 └───────────────────────────────────┴───────────────────────────────────────┘
-
 #### Why we completely rewrote the architecture for V2:
 1. **Mechanical Filtering:** Instead of fighting tracking errors in python code, we fixed them at the hardware level. The transition to the V2 independent suspension isolates surface bumps entirely, keeping the tracking sensors close to the driving surface at a constant geometric focal point.
 2. **Low-Profile Center of Mass:** In V2, the Spike Prime Hub was dropped down into the lower structural bed of the chassis, lowering our tipping moment and allowing the vehicle to execute rapid evasive maneuvers around pillars without chassis oscillation.
@@ -82,7 +81,6 @@ During the prototyping phase, we conducted a study on steering geometries. While
 
 ### 3.1. Power Budget & Signal Topology
 The electronic subsystem is built around a centralized power distribution architecture governed by the **LEGO Spike Prime Hub**.
-
 ┌────────────────────────────────────────────────────────┐
 │                  LEGO Spike Prime Hub                  │
 └───────┬───────────────────┬────────────────────┬───────┘
@@ -104,8 +102,10 @@ A major engineering challenge was integrating the **OpenMV Cam H7 Plus R3** dire
 while not self.hub.imu.ready():
     pass  # Strictly block execution until sensor registers absolute stillness
 self.hub.speaker.beep(100)  # Acoustic feedback confirming calibration lock
-🧠 4. Software Architecture & Obstacle Strategy4.1. Non-Blocking Synchronous State MachineThe entire codebase is structured using an object-oriented, synchronous non-blocking framework. Instead of utilizing linear scripts with dangerous sleep() calls that blind the robot to real-time events, our architecture evaluates an array of Action objects inside a high-frequency control loop running at $\approx 50\text{ Hz}$.4.2. Qualification Round Logic (Direction & Lane Detection)During the Qualification Round, the robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the CheckColorAction class:
+## 🧠 4. Software Architecture & Obstacle Strategy4.1. Non-Blocking Synchronous State MachineThe entire codebase is structured using an object-oriented, synchronous non-blocking framework. Instead of utilizing linear scripts with dangerous sleep() calls that blind the robot to real-time events, our architecture evaluates an array of Action objects inside a high-frequency control loop running at $\approx 50\text{ Hz}$.
+### 4.2.During the Qualification Round, the robot determines its track orientation dynamically using a specialized HSV color tracking algorithm. The color sensor feeds real-time Hue-Saturation-Value vectors into the CheckColorAction class:
 def check_color():
+
     class CheckColorAction(Action):
         def update(inner_self):
             hsv = Action.robot.hsv
@@ -135,7 +135,7 @@ def check_color():
                         return True
             return False
     return CheckColorAction()
-4.3. Obstacle Avoidance Round ($\arcsin$ Geometry & Edge-Case Filtering)When navigating the complex Obstacle Round, continuous camera polling introduces severe tracking oscillation (over-steering). To counteract this, we engineered a Discrete Spatial Windowing strategy.The robot does not continuously look at the camera; instead, it checks the camera exactly once at specific spatial milestones measured via encoder odometry (e.g., every $-20\text{ cm}$ along the X-coordinate axis). Once the data is processed, the steering angle is updated using internal $\arcsin$ tracking math to clear the pillar, and further camera processing is locked until the milestone is cleared.
+### 4.3. When navigating the complex Obstacle Round, continuous camera polling introduces severe tracking oscillation (over-steering). To counteract this, we engineered a Discrete Spatial Windowing strategy.The robot does not continuously look at the camera; instead, it checks the camera exactly once at specific spatial milestones measured via encoder odometry (e.g., every $-20\text{ cm}$ along the X-coordinate axis). Once the data is processed, the steering angle is updated using internal $\arcsin$ tracking math to clear the pillar, and further camera processing is locked until the milestone is cleared.
 
 def camera_drive():
     class CameraDrive(Action):
@@ -165,8 +165,8 @@ for i in range(11):
         drive(camera_drive(), check_color()),        # Cross-reference sector exit colors
         reset()                                      # Reset encoders for next local sector
     ])
-    📈 5. Systems Thinking & Risk Mitigation
-5.1. Engineering Trade-offs & Failure-Mode Analysis
+##    📈 5. Systems Thinking & Risk Mitigation
+### 5.1. Engineering Trade-offs & Failure-Mode Analysis
 Our iterative testing workflow forced us to explicitly analyze system vulnerabilities to prevent catastrophic real-time runtime failures:
 
 Risk 1: Camera Blink / Frame Drop. If the OpenMV camera drops a frame or experiences a lens glare while approaching a pillar, camdata returns None.
@@ -180,6 +180,8 @@ Metric Evaluated,Baseline (Rigid V1 / Continuous Polling),Final V2 (Suspension +
 Odometry Drift (3 Laps),±8.5 cm,±1.1 cm,+87% Accuracy
 Pillar Avoidance Success Rate,70% (Occasional oscillation crashes),100% (Solid over 20 consecutive runs),+30% Stability
 Average Sector Lap Time,4.82 seconds,4.11 seconds,+14.7% Speed Gain
+
+
 ├── docs/                     # Engineering Schematics and Visual Assets
 │   ├── suspension.JPG        # V2 Independent Suspension Assembly Close-up
 │   ├── ackermann.JPG         # Parallel vs Ackermann linkage physical layout
@@ -192,4 +194,6 @@ Average Sector Lap Time,4.82 seconds,4.11 seconds,+14.7% Speed Gain
     ├── drive.odometry        # Odometry calculations & coordinate tracking core
     ├── opening.round         # Qualification round execution profile
     └── obstacle.round        # Obstacle-avoidance routine execution profile
+
+
 🚀 How to Reproduce This RobotHardware Setup: Assemble the chassis utilizing the V2 suspension layout found in docs/suspension.JPG. Mount the front small Spike Prime motor parallel to the steering knuckles to achieve the specified $70^\circ$ maximum mechanical turning throw.Camera Flash: Upload src/camera.code to the OpenMV Cam H7 using the OpenMV IDE. Ensure the LPF2 emulation protocol driver is enabled.Main Controller Deployment: Load the contents of the src/ directory into the LEGO Spike Prime app (using the advanced Python project mode).Execution: Place the robot on the starting grid. Ensure it is completely stationary to allow the IMU boot-hook routine (while not self.hub.imu.ready()) to calibrate successfully. The hub will emit a $100\text{ Hz}$ sound cue once it is safe to start the run.
