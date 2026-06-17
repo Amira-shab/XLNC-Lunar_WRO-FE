@@ -111,6 +111,31 @@ while not self.hub.imu.ready():
 
 self.hub.speaker.beep(100)  # Acoustic feedback confirming calibration lock
 ```
+### 3.3. Custom UART Hardware Interface & Soldering (LPF2 Protocol)
+
+To interface the OpenMV Cam H7 Plus R3 directly with the LEGO Spike Prime Hub, we designed and hand-soldered a custom high-reliability UART bridge. Instead of unreliable breadboard adapters or intermediate breakout shields, we soldered a modified LEGO LPF2 6-pin RJ12 cable directly to the camera’s surface-mount pads.
+
+This design eliminates contact resistance, reduces signal reflections, and prevents the cable from disconnecting under intense race-acceleration forces.
+
+![OpenMV Custom Soldering & Pinout Diagram](docs/solder.jpg)
+
+#### Pin-to-Pin Connection Mapping:
+
+The LEGO LPF2 connector transmits high-speed serial data at a 3.3V logic level. Below is the precise electrical schema of our hand-soldered interface:
+
+| LEGO LPF2 Pin / Wire Color | Target OpenMV Cam Pad | Signal Function | Technical Description |
+| :--- | :--- | :--- | :--- |
+| **Red** | **3.3V Rail** | Power Supply | Draws regulated +3.3V directly from the Spike Prime Hub |
+| **Black** | **GND Rail** | Common Ground | Reference ground plane for electrical noise reduction |
+| **Blue** | **P4 (UART3 RX)** | UART Receive | Receives control parameters and synchronization data from the Hub |
+| **Yellow** | **P5 (UART3 TX)** | UART Transmit | Sends high-frequency coordinate and tracking data to the Hub |
+
+#### Soldering Specifications & Quality Assurance:
+
+1. **Wire Stripping:** The LPF2 flat cable was stripped by approximately 3mm to minimize exposed copper and prevent accidental short circuits.
+2. **Pre-tinning:** All wire tips and the OpenMV gold-plated SMT pads (3.3V, GND, P4, P5) were pre-tinned with lead-free SAC305 solder alloy.
+3. **Thermal Regulation:** Soldering was executed using a micro-chisel tip at a regulated temperature of 320°C. Total contact duration was strictly limited to under 1.5 seconds per pad to protect the high-performance ARM Cortex-M7 microprocessor from thermal shock.
+4. **Insulation & Mechanical Relief:** The soldered joints were secured with non-conductive, electronics-safe epoxy resin to isolate physical stress caused by motor vibrations during operation.
 
 ---
 
@@ -241,11 +266,14 @@ To validate our system changes, we ran 20 structured test runs comparing the bas
 │   ├── suspension.JPG        # V2 Independent Suspension Assembly Close-up
 │   ├── ackermann.JPG         # Parallel vs Ackermann linkage physical layout
 │   ├── team.JPG              # Team Profile Photo
-│   ├── old-bobik.JPG         # Legacy V1 Prototype Photo
+│   ├── old_robot.JPG         # Legacy V1 Prototype Photo
+│   ├── robot.JPG             # Our current robot
+│   ├── solder.jpg            # Solder and connection to camera
 │   └── OpenMV.JPG            # Camera mounting, alignment, and FOV schematics
 └── src/                      # Source Code Directory (Fully Documented)
-    ├── main.py               # Main Non-Blocking Loop and Action Sequencer
+    ├── robot                 # Robot initialization
     ├── camera.code           # MicroPython script for OpenMV HSV Color Tracking
-    ├── drive.odometry        # Odometry calculations & coordinate tracking core
+    ├── movements             # Odometry and other calculations
     ├── opening.round         # Qualification round execution profile
+    ├── movements             # A lot of different functions
     └── obstacle.round        # Obstacle-avoidance routine execution profile
