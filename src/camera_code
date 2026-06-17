@@ -1,0 +1,139 @@
+import sensor
+import time
+import math
+import micropython
+import LPF2
+from pyb import LED
+import math as umath
+
+micropython.alloc_emergency_exception_buf(200)
+
+# --- Robot and camera constants ---
+verticalFOV = 55.6   # angle in degree
+horizontalFOV = 70.8  # angle in degree
+height = 20.6          # in centimeters
+angleCamera = 38       # angle in degree
+widthCamera = 320    # in pixels
+heightCamera = 240   # in pixels
+
+# --- Color thresholds (LAB) ---
+green_threshold = (40, 85, -95, -35, 20, 70)
+red_threshold = (25, 75, 20, 80, -10, 50)
+
+# --- Camera Define ---
+sensor.reset()
+sensor.set_vflip(False)
+sensor.set_hmirror(False)
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)  # 320x240
+
+# Стабильные настройки выдержки против смазывания при движении
+sensor.set_auto_exposure(False, exposure_us=14000)
+sensor.set_auto_gain(False, gain_db=20)
+
+sensor.skip_frames(time=2000)
+sensor.set_auto_whitebal(False)
+
+clock = time.clock()
+
+# --- LPF2 Define ---
+modes = [LPF2.mode('OpenMV-ALL', size=4, type=LPF2.DATA16, format='3.0')]
+DataToSend = [0] * 4
+lpf2 = LPF2.Prime_LPF2(3, 'P4', 'P5', modes, 62, timer=4, freq=10)
+lpf2.initialize()
+
+# --- ПЕРЕМЕННЫЕ ДЛЯ ФИЛЬТРАЦИИ ДРЕБЕЗГА ---
+last_valid_data = [0, 0, 0, 0]
+lost_frames_counter = 0
+MAX_LOST_FRAMES = 12
+
+# --- Main Task ---
+while True:
+    if not lpf2.connected:
+        LED(1).on()
+        LED(2).off()
+        LED(3).off()
+        time.sleep(0.05)
+        lpf2.sendTimer.deinit()
+        lpf2.initialize()
+    else:
+        LED(1).off()
+        clock.tick()
+        img = sensor.snapshot()
+
+        # Поиск блобов
+        green_blobs = img.find_blobs([green_threshold], area_threshold=150, pixels_threshold=150, merge=True)
+        red_blobs = img.find_blobs([red_threshold], area_threshold=150, pixels_threshold=150, merge=True)
+
+        g_area, r_area = 0, 0
+        any_detected = False
+        color_flag = 0
+
+        # --- Process GREEN ---
+        valid_green_blobs = [b for b in green_blobs if 200 < b.area() < 16000 and b.solidity() > 0.3]
+        if valid_green_blobs:
+            g = max(valid_green_blobs, key=lambda b: b.area())
+            img.draw_rectangle(g.rect(), color=(0, 255, 0))
+            img.draw_cross(g.cx(), g.cy(), color=(0, 255, 0))
+            g_area = g.area()
+            any_detected = True
+
+        # --- Process RED ---
+        valid_red_blobs = [b for b in red_blobs if 200 < b.area() < 16000 and b.solidity() > 0.3]
+        if valid_red_blobs:
+            r = max(valid_red_blobs, key=lambda b: b.area())
+            img.draw_rectangle(r.rect(), color=(255, 0, 0))
+            img.draw_cross(r.cx(), r.cy(), color=(255, 0, 0))
+            r_area = r.area()
+            any_detected = True
+
+        camX, camY, area = 0, 0, 0
+
+        # Выбираем приоритет
+        if g_area > r_area and g_area > 0:
+            color_flag = 1
+            camX = g.cx()
+            camY = g.cy()
+            area = g.area()
+        elif r_area > g_area and r_area > 0:
+            color_flag = 2
+            camX = r.cx()
+            camY = r.cy()
+            area = r.area()
+        else:
+            color_flag = 0
+
+        # --- Логика фильтрации и отправки ---
+        if color_flag != 0:
+            distance = 794.37 / umath.sqrt(area)
+            center_x = widthCamera / 2
+            pixel_offset_x = camX - center_x
+
+            k = umath.tan(umath.radians(35.4)) * (pixel_offset_x) / center_x
+            theta = umath.atan(k)
+
+            relX = max(0, min(300, int(umath.cos(theta) * distance)))
+            relY = max(-150, min(150, int(umath.sin(theta) * distance)))
+
+            last_valid_data = [color_flag, relX, relY, 0]
+            lost_frames_counter = 0
+
+            DataToSend = last_valid_data
+            LED(3).off()
+            LED(2).on()
+
+        else:
+            if lost_frames_counter < MAX_LOST_FRAMES and last_valid_data[0] != 0:
+                lost_frames_counter += 1
+                last_valid_data[1] = max(0, last_valid_data[1] - 3)
+                DataToSend = last_valid_data
+                LED(3).on()
+                LED(2).on()
+            else:
+                last_valid_data = [0, 0, 0, 0]
+                DataToSend = [0, 0, 0, 0]
+                LED(3).on()
+                LED(2).off()
+
+        print("ОТПРАВКА:", DataToSend)
+        lpf2.load_payload('Int16', DataToSend)
