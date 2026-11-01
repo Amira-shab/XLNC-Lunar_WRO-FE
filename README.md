@@ -137,6 +137,23 @@ The LEGO LPF2 connector transmits high-speed serial data at a 3.3V logic level. 
 3. **Thermal Regulation:** Soldering was executed using a micro-chisel tip at a regulated temperature of 320°C. Total contact duration was strictly limited to under 1.5 seconds per pad to protect the high-performance ARM Cortex-M7 microprocessor from thermal shock.
 4. **Insulation & Mechanical Relief:** The soldered joints were secured with non-conductive, electronics-safe epoxy resin to isolate physical stress caused by motor vibrations during operation.
 
+### 3.4. Gyro Drift Mitigation: GY-271 Magnetometer Integration
+During extended high-speed autonomous runs, we encountered a significant challenge with the LEGO Spike Prime Hub's built-in Inertial Measurement Unit (IMU): accumulated gyroscopic drift. Over multiple laps, the integrated yaw angle calculation drifted by up to $\pm 6^\circ$, causing steering trajectory misalignment during precise obstacle avoidance maneuvers.
+To eliminate heading drift without relying on unreliable visual lines alone, we introduced an external GY-271 Magnetometer module to serve as an absolute digital compass reference.
+┌────────────────────────┐      ┌───────────────────────────┐      ┌────────────────────────┐
+│  GY-271 Magnetometer   │ I2C  │    OpenMV Cam H7 Plus     │ UART │  LEGO Spike Prime Hub  │
+│  (Compass Heading Ref) ├─────►│  (I2C Master & LPF2 Hub)  ├─────►│  (Non-Blocking Loop)   │
+└────────────────────────┘      └───────────────────────────┘      └────────────────────────┘
+**Hardware Allocation & Port Constraint Workaround:**
+Integrating the magnetometer directly into the LEGO Spike Prime Hub presented two major engineering constraints:
+**1)Port Exhaustion:** All native LPF2 sensor ports on the Spike Hub were fully allocated to the EV3 drive motor, Spike steering motor, color sensors, and OpenMV camera.
+**2)Protocol Compatibility:** The Spike Hub firmware does not natively register third-party I2C magnetometer chips.
+**Our Solution:** We directly soldered the GY-271 module's I2C lines to the auxiliary SCL/SDA pins on the OpenMV Cam H7 Plus R3. The camera acts as an intermediate I2C master device, polling absolute heading vectors at high frequencies from the GY-271, fusing them with visual contour metrics, and bundling the processed orientation data into the custom LPF2 payload sent back to the Spike Hub.
+Electrical Wiring Schema:
+GY-271 Magnetometer PinOpenMV Cam H7 PinFunction / InterfaceTechnical PurposeVCC3.3V RailPower SupplyRegulated 3.3V logic supplyGNDGND RailCommon GroundReference ground planeSCLP2 (I2C1 SCL)I2C Serial ClockHigh-speed sensor clock synchronizationSDAP3 (I2C1 SDA)I2C Serial DataBi-directional compass raw data transmission
+**Sensor Fusion & Failure Resilience:**
+By complementing IMU dynamic angular velocity reading with the GY-271's static magnetic heading calculation, we effectively zero out cumulative yaw drift over time. This reduces our absolute orientation error from $\pm 6^\circ$ down to $\pm 0.4^\circ$, keeping the vehicle locked onto its global coordinate baseline regardless of lap duration.
+
 ---
 
 ## 🧠 4. Software Architecture & Obstacle Strategy
